@@ -5,6 +5,7 @@
 const int NUM_CYCLISTS = 6;
 const int NUM_SCENARIOS = 6;
 const int RACE_DISTANCE = 1000;  //todo: calibrate total steps to finish line
+const int BOOST_CHANCE = 10;     // % Chance of speed boost (double step)
 const int STEP_DELAY = 100;      // Base delay between steps (ms)
 
 // Scenario probabilities (must total to 100)
@@ -46,6 +47,14 @@ void setup() {
   randomSeed(analogRead(A0)); // Ensure randomness
 }
 
+// put function declarations here:
+/*
+  This function determines which cyclist will advance in the current iteration based on the scenario's probabilities
+  inputs: scenarioIndex - selection made by game master
+  output: cyclist index - refrence to which stepper will move
+*/
+int getWeightedRandomCyclist(uint8_t scenarioIndex);
+
 void loop() {
   // put your main code here, to run repeatedly:
   if (raceFinished) return;
@@ -53,6 +62,14 @@ void loop() {
   int cyclist = getWeightedRandomCyclist(currentScenario);
 
   int steps = 1;
+
+  // Speed boost chance
+  if (random(0, 100) < BOOST_CHANCE) {
+    steps = 2;
+  }
+
+  // Add slight randomness to step delay (±20 ms)
+  int delayJitter = random(-20, 20);
 
   // Move cyclists
   for (int i = 0; i < steps; i++) {
@@ -74,7 +91,7 @@ void loop() {
     }
   }
 
-  delay(STEP_DELAY);
+  delay(STEP_DELAY + delayJitter);
 }
 
 // put function definitions here:
@@ -82,11 +99,14 @@ void loop() {
 int getWeightedRandomCyclist(uint8_t scenarioIndex) {
   int r = random(0, 100);
   int cumulative = 0;
+  // Goes through each cyclist's probabilities and checks if it beats a random chance value
   for (int i = 0; i < NUM_CYCLISTS; i++) {
     cumulative += scenarioProbabilities[scenarioIndex][i];
+    // If the probability is greater, than that cyclist advances and the others don't
     if (r < cumulative) {
       return i;
     }
+    // Else, if no cyclist's prob beats the random value, nobody advances
   }
   return NUM_CYCLISTS - 1;  // fallback
 }
