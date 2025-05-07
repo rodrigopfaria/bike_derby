@@ -7,7 +7,7 @@
 
 //------------------------------------
 // LCD setup (16x2 LCD example)
-const int rs = 7, en = 6, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
+const int rs = 51 , en = 53, d4 = 49, d5 = 47, d6 = 45, d7 = 43;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 //------------------------------------
@@ -19,8 +19,8 @@ char keys[ROWS][COLS] = {
     {'4', '5', '6', 'B'},
     {'7', '8', '9', 'C'},
     {'*', '0', '#', 'D'}};
-byte rowPins[ROWS] = {22, 23, 24, 25}; // adjust as needed
-byte colPins[COLS] = {26, 27, 28, 29};
+byte rowPins[ROWS] = {38, 40, 42, 44}; // adjust as needed
+byte colPins[COLS] = {46, 48, 50, 52};
 Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
 
 //------------------------------------
@@ -31,10 +31,10 @@ AccelStepper steppers[NUM_CYCLISTS] = {
     AccelStepper(AccelStepper::DRIVER, 32, 33),
     AccelStepper(AccelStepper::DRIVER, 34, 35),
     AccelStepper(AccelStepper::DRIVER, 36, 37),
-    AccelStepper(AccelStepper::DRIVER, 38, 39),
-    AccelStepper(AccelStepper::DRIVER, 40, 41),
-    AccelStepper(AccelStepper::DRIVER, 42, 43),
-    AccelStepper(AccelStepper::DRIVER, 44, 45)};
+    AccelStepper(AccelStepper::DRIVER, 0, 1),
+    AccelStepper(AccelStepper::DRIVER, 2, 3),
+    AccelStepper(AccelStepper::DRIVER, 4, 5),
+    AccelStepper(AccelStepper::DRIVER, 6, 7)};
 
 //------------------------------------
 // Constants
@@ -74,7 +74,7 @@ enum State
 State currentState = STATE_IDLE;
 
 int winnerHorse = -1;            // Track winner index
-const long RACE_DISTANCE = 2000; // Target position to finish race
+// const long RACE_DISTANCE = 2000; // Target position to finish race
 int favoredHorse = -1;           // Track user-selected favored horse
 
 //------------------------------------
@@ -146,6 +146,9 @@ void loop()
   {
     steppers[i].run();
   }
+
+  Serial.println(currentState);
+  
 
   /*
     BREAK DOWN THE FOLLOWING LOGIC AND PUT INSIDE THE HANDLE FUNCTIONS.
