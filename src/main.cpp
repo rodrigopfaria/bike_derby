@@ -110,6 +110,11 @@ void setup()
 //------------------------------------
 void loop()
 {
+
+	/**
+	 * todo: add a state between RACE and RESULT where the remaining riders are moved to the finish line
+	 */
+
 	switch (currentState)
 	{
 	case STATE_IDLE:	// Default state is IDLE, waiting for user input
