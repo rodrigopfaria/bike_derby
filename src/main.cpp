@@ -24,17 +24,16 @@ byte colPins[COLS] = {46, 48, 50, 52};
 Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
 
 //------------------------------------
-// Stepper setup (8 motors, DRV8825 drivers)
-#define NUM_CYCLISTS 8
+// Stepper setup (6 motors, DRV8825 drivers)
+#define NUM_CYCLISTS 6
 AccelStepper steppers[NUM_CYCLISTS] = {
 	AccelStepper(AccelStepper::DRIVER, 30, 31),
 	AccelStepper(AccelStepper::DRIVER, 32, 33),
 	AccelStepper(AccelStepper::DRIVER, 34, 35),
 	AccelStepper(AccelStepper::DRIVER, 36, 37),
 	AccelStepper(AccelStepper::DRIVER, 0, 1),
-	AccelStepper(AccelStepper::DRIVER, 2, 3),
-	AccelStepper(AccelStepper::DRIVER, 4, 5),
-	AccelStepper(AccelStepper::DRIVER, 6, 7)};
+	AccelStepper(AccelStepper::DRIVER, 2, 3)
+};
 
 //------------------------------------
 // Constants
@@ -60,6 +59,7 @@ const uint8_t scenarioProbabilities[NUM_SCENARIOS][NUM_CYCLISTS] = {
 int currentScenario = 0;
 int cyclistPositions[NUM_CYCLISTS] = {0};
 bool raceFinished = false;
+// const long RACE_DISTANCE = 2000; // Target position to finish race
 
 //------------------------------------
 // FSM States
@@ -72,10 +72,6 @@ enum State
 	STATE_RESULT
 };
 State currentState = STATE_IDLE;
-
-int winnerHorse = -1; 				// Track winner index
-// const long RACE_DISTANCE = 2000; // Target position to finish race
-int currentScenario = -1; 			// Track user-selected favored horse
 
 //------------------------------------
 // Function declarations
@@ -91,22 +87,12 @@ void resetRace();
 void initializeSteppers();
 /*
   This function determines which cyclist will advance in the current iteration based on the scenario's probabilities
-  inputs: scenarioIndex - selection made by game master
+  input: scenarioIndex - selection made by game master
   output: cyclist index - refrence to which stepper will move
 */
 int getWeightedRandomCyclist(uint8_t scenarioIndex);
 
 //------------------------------------
-void initializeSteppers()
-{
-	for (int i = 0; i < NUM_CYCLISTS; i++)
-	{
-		steppers[i].setMaxSpeed(1000);
-		steppers[i].setAcceleration(500);
-		steppers[i].setSpeed(200);
-	}
-}
-
 void setup()
 {
 	Serial.begin(9600);
@@ -117,20 +103,15 @@ void setup()
 	// Initialize steppers
 	initializeSteppers();
 
-	currentScenario = 0;		// Selectable between 0–5
+	currentScenario = -1;		// Selectable between 0–5
 	randomSeed(analogRead(A0)); // Ensure randomness
 }
 
 //------------------------------------
 void loop()
 {
-
-	// WE NEED TO CREATE A FSM DIAGRAM IN A PAPER ACCORDING TO HOW WE WANT. THIS ONE WORKS AS AN INITIAL SKELETON.
-
-	
 	switch (currentState)
 	{
-	
 	case STATE_IDLE:	// Default state is IDLE, waiting for user input
 		handleIdle();
 		break;
@@ -391,4 +372,14 @@ void resetRace()
 	}
 	winnerHorse = -1;
 	currentScenario = -1;
+}
+
+void initializeSteppers()
+{
+	for (int i = 0; i < NUM_CYCLISTS; i++)
+	{
+		steppers[i].setMaxSpeed(1000);
+		steppers[i].setAcceleration(500);
+		steppers[i].setSpeed(200);
+	}
 }
