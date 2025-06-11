@@ -1,10 +1,10 @@
-#include <iostream>
+#include <Arduino.h>
+#include <unity.h>
 #include <vector>
 #include <string>
 #include <queue>
-#include <cassert>
 
-// Mock Stepper
+// --- Mock Classes (same as before) ---
 class MockStepper {
 public:
     int pos = 0;
@@ -27,7 +27,6 @@ public:
     int distanceToGo() { return target - pos; }
 };
 
-// Mock LCD
 class MockLCD {
 public:
     std::string line1, line2;
@@ -39,7 +38,7 @@ public:
     }
 };
 
-// Simulated Keypad
+// --- Simulated Inputs ---
 std::queue<char> keypadInputs;
 char getSimulatedKey() {
     if (!keypadInputs.empty()) {
@@ -49,8 +48,6 @@ char getSimulatedKey() {
     }
     return '\0';
 }
-
-// Simulated limit switches (HIGH = not at start, LOW = at start)
 std::vector<int> limitSwitchStates;
 int digitalRead(int idx) {
     return limitSwitchStates[idx];
@@ -100,7 +97,6 @@ void updateDisplay(const std::string& l1, const std::string& l2) {
     lcd.clear();
     lcd.print(l1);
     lcd.print(l2);
-    std::cout << "[LCD] " << l1 << " | " << l2 << std::endl;
 }
 
 // --- Debounce function ---
@@ -127,7 +123,7 @@ int getWeightedRandomCyclist(unsigned int scenarioIndex) {
     return -1;
 }
 
-// --- FSM Handlers (simplified for test) ---
+// --- FSM Handlers (same as before) ---
 void handleIdle() {
     char key = getDebouncedKey();
     if (key == 'A') {
@@ -135,7 +131,6 @@ void handleIdle() {
         currentState = STATE_SETUP;
     }
 }
-
 void handleSetup() {
     char key = getDebouncedKey();
     if (key >= '1' && key <= '6') {
@@ -153,7 +148,6 @@ void handleSetup() {
         currentState = STATE_READY;
     }
 }
-
 void handleReady() {
     char key = getDebouncedKey();
     if (key == 'D') {
@@ -161,7 +155,6 @@ void handleReady() {
         currentState = STATE_RACE;
     }
 }
-
 void checkWinner() {
     for (int i = 0; i < NUM_CYCLISTS; i++) {
         if (steppers[i].currentPosition() >= RACE_DISTANCE) {
@@ -171,7 +164,6 @@ void checkWinner() {
         }
     }
 }
-
 void handleRace() {
     if (raceStartTime == 0) raceStartTime = millis();
     if (millis() - raceStartTime > raceTimeout) {
@@ -181,7 +173,6 @@ void handleRace() {
     }
     char key = getDebouncedKey();
     if (key == 'C') {
-        // Simulate reset
         updateDisplay("Resetting", "Press A to start");
         currentState = STATE_IDLE;
         return;
@@ -219,20 +210,17 @@ void handleRace() {
         }
     }
 }
-
 void handleResult() {
     char key = getDebouncedKey();
     if (key == 'C') {
-        // Simulate reset
         updateDisplay("Resetting", "Press A to start");
         currentState = STATE_IDLE;
     }
 }
 
-// --- Test Harness ---
-void runTestScenario() {
+// --- PlatformIO Unity Test ---
+void test_full_race_scenario() {
     // Simulate: Startup -> Idle -> Setup -> Ready -> Race -> Result -> Reset
-    std::cout << "=== Test: Full Race ===" << std::endl;
     currentState = STATE_IDLE;
     currentScenario = -1;
     for (int i = 0; i < NUM_CYCLISTS; i++) {
@@ -261,21 +249,82 @@ void runTestScenario() {
         advanceTime(50); // Simulate time passing
         loopCount++;
     }
-    assert(currentState == STATE_RESULT);
-    std::cout << "Race finished. Winner displayed above." << std::endl;
-
+    TEST_ASSERT_EQUAL(STATE_RESULT, currentState);
     // Simulate pressing 'C' to reset
     keypadInputs.push('C');
     handleResult();
-    std::cout << "Reset complete. Back to idle." << std::endl;
+    TEST_ASSERT_EQUAL(STATE_IDLE, currentState);
 }
 
-int main() {
-    // Simulate all limit switches as HIGH (not at start)
+void setUp(void) {
+    // This is run before EACH test
     limitSwitchStates = std::vector<int>(NUM_CYCLISTS, 1);
+    mockMillis = 0;
+}
 
-    runTestScenario();
+void tearDown(void) {
+    // This is run after EACH test
+}
 
-    // Additional tests can be added here
-    return 0;
+void test_weighted_random_cyclist() {
+    // Test that the function returns a valid index
+    for (int s = 0; s < NUM_SCENARIOS; ++s) {
+        int idx = getWeightedRandomCyclist(s);
+        TEST_ASSERT_TRUE(idx >= 0 && idx < NUM_CYCLISTS);
+    }
+}
+
+void test_debounced_key() {
+    keypadInputs.push('A');
+    char key = getDebouncedKey();
+    TEST_ASSERT_EQUAL('A', key);
+    // Should not return another key until debounceDelay has passed
+    keypadInputs.push('B');
+    key = getDebouncedKey();
+    TEST_ASSERT_EQUAL('\0', key);
+    advanceTime(debounceDelay + 1);
+    key = getDebouncedKey();
+    TEST_ASSERT_EQUAL('B', key);
+}
+
+void test_mock_stepper() {
+    MockStepper s;
+    s.setCurrentPosition(0);
+    s.move(5);
+    for (int i = 0; i < 5; ++i) s.run();
+    TEST_ASSERT_EQUAL(5, s.currentPosition());
+    s.move(-3);
+    for (int i = 0; i < 3; ++i) s.run();
+    TEST_ASSERT_EQUAL(2, s.currentPosition());
+}
+
+void test_mock_lcd() {
+    lcd.clear();
+    lcd.print("Hello");
+    lcd.print("World");
+    TEST_ASSERT_EQUAL_STRING("Hello", lcd.line1.c_str());
+    TEST_ASSERT_EQUAL_STRING("World", lcd.line2.c_str());
+}
+
+void test_limit_switch_simulation() {
+    limitSwitchStates = {1, 0, 1, 0};
+    TEST_ASSERT_EQUAL(1, digitalRead(0));
+    TEST_ASSERT_EQUAL(0, digitalRead(1));
+    TEST_ASSERT_EQUAL(1, digitalRead(2));
+    TEST_ASSERT_EQUAL(0, digitalRead(3));
+}
+
+void setup() {
+    UNITY_BEGIN();
+    RUN_TEST(test_full_race_scenario);
+    RUN_TEST(test_weighted_random_cyclist);
+    RUN_TEST(test_debounced_key);
+    RUN_TEST(test_mock_stepper);
+    RUN_TEST(test_mock_lcd);
+    RUN_TEST(test_limit_switch_simulation);
+    UNITY_END();
+}
+
+void loop() {
+    // not used
 }
