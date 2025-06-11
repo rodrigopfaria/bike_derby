@@ -106,7 +106,6 @@ void setup()
 	lcd.begin(16, 2);
 	updateDisplay("Horse Race", "Press A to Start");
 
-	// Initialize steppers
 	initializeSteppers();
 
 	currentScenario = -1;		// Selectable between 0–5
@@ -119,6 +118,7 @@ void loop()
 
 	/**
 	 * todo: add a state between RACE and RESULT where the remaining riders are moved to the finish line
+   * (or wait for them to finish in the RACE state before moving to RESULT)
 	 */
 
 	switch (currentState)
@@ -143,6 +143,9 @@ void loop()
 	Serial.println(currentState);
 }
 
+
+
+
 //------------------------------------
 // Function Definitions
 
@@ -165,6 +168,8 @@ int getWeightedRandomCyclist(uint8_t scenarioIndex)
 	return - 1;
 }
 
+
+// Handle Functions
 //------------------------------------
 void handleIdle()
 {
@@ -190,6 +195,7 @@ void handleSetup()
 		// update display with selected scenario
 		updateDisplay("Scenario Selected", "SCN " + String(currentScenario + 1));
 	}
+
 	// 'Ready' button
 	if (key == 'B') 
 	{ 
@@ -197,6 +203,7 @@ void handleSetup()
 		if (currentScenario >= 0)
 		{
 			// Reset positions and raceFinished flag
+      raceFinished = false;
 			for (int i = 0; i < NUM_CYCLISTS; i++)
 			{
 				// Stop all steppers
@@ -217,7 +224,7 @@ void handleSetup()
 	}
 }
 
-// todo: add a delay to avoid multiple presses and add check for correct position of the steppers
+// todo: add check for correct position of the steppers
 void handleReady()
 {
 	char key = getDebouncedKey();
@@ -231,13 +238,24 @@ void handleReady()
 
 void handleRace()
 {
+
+  // Keyboard polling check for abort key
+  // todo: check if thats enough polling
+  char key = keypad.getKey();
+  if (key == 'C') // 'RESET' key
+  { 
+    resetRace();
+    updateDisplay("Resetting", "Press A to start");
+    currentState = STATE_IDLE;
+    return;
+  }
+
 	int steps = 1;	// Default step size
 
 	// Check if any cyclist has reached the finish line
 	// If so, set raceFinished to true and display the winner
 	checkWinner();
 
-	// If race is finished go to next state
 	if (raceFinished) 
 	{
 		currentState = STATE_RESULT;
@@ -332,6 +350,7 @@ void handleResult()
 	}
 }
 
+// Other helper functions
 //------------------------------------
 void updateDisplay(const String &line1, const String &line2)
 {
