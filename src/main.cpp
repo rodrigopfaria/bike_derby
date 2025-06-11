@@ -23,7 +23,6 @@ byte rowPins[ROWS] = {38, 40, 42, 44}; // adjust as needed
 byte colPins[COLS] = {46, 48, 50, 52};
 Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
 
-
 //------------------------------------
 // Stepper setup (6 motors, DRV8825 drivers)
 #define NUM_CYCLISTS 4
@@ -31,8 +30,7 @@ AccelStepper steppers[NUM_CYCLISTS] = {
 	AccelStepper(AccelStepper::DRIVER, 30, 31),
 	AccelStepper(AccelStepper::DRIVER, 32, 33),
 	AccelStepper(AccelStepper::DRIVER, 34, 35),
-	AccelStepper(AccelStepper::DRIVER, 36, 37)
-};
+	AccelStepper(AccelStepper::DRIVER, 36, 37)};
 
 //------------------------------------
 // Limit switch setup
@@ -41,9 +39,9 @@ const int limitSwitchPins[NUM_CYCLISTS] = {22, 23, 24, 25};
 //------------------------------------
 // Constants
 const int NUM_SCENARIOS = 6;
-const int RACE_DISTANCE = 1000; // todo: calibrate total steps to finish line
-const int BOOST_CHANCE = 10;	// % Chance of speed boost (double step)
-const int STEP_DELAY = 100;		// Base delay between steps (ms)
+const int RACE_DISTANCE = 1000;			 // todo: calibrate total steps to finish line
+const int BOOST_CHANCE = 10;			 // % Chance of speed boost (double step)
+const int STEP_DELAY = 100;				 // Base delay between steps (ms)
 const unsigned long debounceDelay = 200; // milliseconds
 
 // Scenario probabilities (must total to 100)
@@ -60,7 +58,12 @@ const uint8_t scenarioProbabilities[NUM_SCENARIOS][NUM_CYCLISTS] = {
 int currentScenario = 0;
 int cyclistPositions[NUM_CYCLISTS] = {0};
 bool raceFinished = false;
-unsigned long lastKeypadTime = 0;	// used for debouncing
+unsigned long lastKeypadTime = 0;		 // used for debouncing
+unsigned long lastRaceStepTime = 0;		 // used for delay between steps
+int currentStepDelay = STEP_DELAY;		 // current step delay, can be adjusted based on scenario
+unsigned long raceStartTime = 0;		 // used to track race timeout
+const unsigned long raceTimeout = 60000; // 1 minute
+const unsigned long resetTimeout = 30000; // 30 seconds
 
 //------------------------------------
 // FSM States
@@ -99,52 +102,53 @@ void setup()
 	Serial.begin(9600);
 
 	// Set limit switch pins as input with pull-up resistors
-    for (int i = 0; i < NUM_CYCLISTS; i++) {
-        pinMode(limitSwitchPins[i], INPUT_PULLUP); // Assuming active LOW
-    }
+	for (int i = 0; i < NUM_CYCLISTS; i++)
+	{
+		pinMode(limitSwitchPins[i], INPUT_PULLUP); // Assuming active LOW
+	}
 
 	lcd.begin(16, 2);
 	updateDisplay("Horse Race", "Press A to Start");
 
 	initializeSteppers();
 
-	currentScenario = -1;		// Selectable between 0–5
-	randomSeed(analogRead(A0)); // Ensure randomness
+	currentScenario = -1; // Selectable between 0–5
 }
 
 //------------------------------------
 void loop()
 {
-
-	/**
-	 * todo: add a state between RACE and RESULT where the remaining riders are moved to the finish line
-   * (or wait for them to finish in the RACE state before moving to RESULT)
-	 */
-
 	switch (currentState)
 	{
-	case STATE_IDLE:	// Default state is IDLE, waiting for user input
+	// Default state is IDLE, waiting for user input
+	case STATE_IDLE:
 		handleIdle();
 		break;
-	case STATE_SETUP:	// Setup state, waiting for user to select a scenario
-		handleSetup();		
+	// Setup state, waiting for user to select a scenario
+	case STATE_SETUP:
+		handleSetup();
 		break;
-	case STATE_READY:	// Ready state, waiting for user to press 'D' to start the race
+	// Ready state, waiting for user to press 'D' to start the race
+	case STATE_READY:
 		handleReady();
 		break;
-	case STATE_RACE:	// Move steppers and check for winner
+	// Move steppers and check for winner
+	case STATE_RACE:
 		handleRace();
 		break;
-	case STATE_RESULT:	// Display winner and reset once button is pressed
+	// Display winner and reset once button is pressed
+	case STATE_RESULT:
 		handleResult();
+		break;
+	// If an unknown state is reached, reset to IDLE
+	default:
+		updateDisplay("Unkown state", "Default state");
+		handleIdle();
 		break;
 	}
 
 	Serial.println(currentState);
 }
-
-
-
 
 //------------------------------------
 // Function Definitions
@@ -165,9 +169,8 @@ int getWeightedRandomCyclist(uint8_t scenarioIndex)
 		}
 	}
 	// If no cyclist was selected, return -1
-	return - 1;
+	return -1;
 }
-
 
 // Handle Functions
 //------------------------------------
@@ -177,6 +180,9 @@ void handleIdle()
 	char key = getDebouncedKey();
 	if (key == 'A')
 	{
+		// Get random seed based on current time at button press
+		// This ensures that the random numbers generated are different each time
+		randomSeed(millis());
 		updateDisplay("Setup Mode", "Select scenario 1-6");
 		currentState = STATE_SETUP;
 	}
@@ -190,20 +196,20 @@ void handleSetup()
 		// convert char to int (1-6) and set currentScenario
 		// subtract 1 to get 0-5 range for array access
 		// currentScenario = key - '0' - 1; // '1' to '6' -> 0 to 5
-		currentScenario = key - '1';	
+		currentScenario = key - '1';
 
 		// update display with selected scenario
 		updateDisplay("Scenario Selected", "SCN " + String(currentScenario + 1));
 	}
 
 	// 'Ready' button
-	if (key == 'B') 
-	{ 
+	if (key == 'B')
+	{
 		// Check if a scenario is selected
 		if (currentScenario >= 0)
 		{
 			// Reset positions and raceFinished flag
-      raceFinished = false;
+			raceFinished = false;
 			for (int i = 0; i < NUM_CYCLISTS; i++)
 			{
 				// Stop all steppers
@@ -230,7 +236,7 @@ void handleReady()
 	char key = getDebouncedKey();
 	// Start race
 	if (key == 'D')
-	{ 
+	{
 		updateDisplay("Race Starting", "Go!");
 		currentState = STATE_RACE;
 	}
@@ -238,104 +244,119 @@ void handleReady()
 
 void handleRace()
 {
+	// Race timeout check
+	if (raceStartTime == 0)
+		raceStartTime = millis();
+	if (millis() - raceStartTime > raceTimeout)
+	{
+		updateDisplay("Race Timeout", "Check motors!");
+		currentState = STATE_RESULT;
+		return;
+	}
 
-  // Keyboard polling check for abort key
-  // todo: check if thats enough polling
-  char key = getDebouncedKey();
-  if (key == 'C') // 'RESET' key
-  { 
-    resetRace();
-    updateDisplay("Resetting", "Press A to start");
-    currentState = STATE_IDLE;
-    return;
-  }
+	// Keyboard polling check for abort key
+	// todo: check if thats enough polling
+	char key = getDebouncedKey();
+	if (key == 'C') // 'RESET' key
+	{
+		resetRace();
+		updateDisplay("Resetting", "Press A to start");
+		currentState = STATE_IDLE;
+		return;
+	}
 
-	int steps = 1;	// Default step size
+	// Only proceed if enough time has passed since the last step
+	unsigned long now = millis();
+	if (now - lastRaceStepTime < currentStepDelay)
+	{
+		// Still waiting, just return and let loop() call us again
+		return;
+	}
+	lastRaceStepTime = now;
+	// Randomize delay to simulate different speeds
+	currentStepDelay = STEP_DELAY + random(-20, 20);
 
 	// Check if any cyclist has reached the finish line
 	// If so, set raceFinished to true and display the winner
 	checkWinner();
 
-	if (raceFinished) 
+	if (raceFinished)
 	{
 		currentState = STATE_RESULT;
+		raceStartTime = 0; // Reset for next race
 		return;
 	}
-		
+
 	// Get a random cyclist based on the current scenario
 	// This function will return a cyclist index based on the scenario probabilities
 	// This cyclist will be the one to move the most in this iteration
 	int luckyCyclist = getWeightedRandomCyclist(currentScenario);
-	
-
-	// Speed boost chance
-	if (random(0, 100) < BOOST_CHANCE)
-	{
-		steps = 3;	// Triple step for lucky cyclist
-	}
 
 	// Add a different, slight randomness to step delay on every itereation (±20 ms)
 	int delayJitter = random(-20, 20);
 
 	// Move cyclists
-	for (int j = 0; j < NUM_CYCLISTS; j++)
+	for (int i = 0; i < NUM_CYCLISTS; i++)
 	{
 		// Check if the lucky cyclist is the one to move
 		// If so, move them the most (3 steps) and check if they reached the finish line
 		// Else, move the other cyclists a minimum amount (1 step)
-		if (j == luckyCyclist)
+		if (i == luckyCyclist)
 		{
-			for (int i = 0; i < steps; i++)
+			int moveSteps = (random(0, 100) < BOOST_CHANCE) ? 15 : 5; // 3x boost or normal
+			if (cyclistPositions[luckyCyclist] < RACE_DISTANCE)
 			{
-				if (cyclistPositions[luckyCyclist] < RACE_DISTANCE)
+				if (steppers[luckyCyclist].distanceToGo() == 0)
 				{
-					steppers[luckyCyclist].move(5);
-					steppers[luckyCyclist].run();
-					cyclistPositions[luckyCyclist]++;
+					steppers[luckyCyclist].move(moveSteps);
 				}
-				// Check if the lucky cyclist has reached the finish line
-				else
+				steppers[luckyCyclist].run();
+				cyclistPositions[luckyCyclist] = steppers[luckyCyclist].currentPosition();
+			}
+			// Check if the lucky cyclist has reached the finish line
+			else
+			{
+				// Stop the stepper if it reaches the finish line
+				steppers[luckyCyclist].stop();
+				checkWinner();
+				if (raceFinished)
 				{
-					// Stop the stepper if it reaches the finish line
-					steppers[luckyCyclist].stop();
-					checkWinner();
-					if (raceFinished) 
-					{	
-						currentState = STATE_RESULT;
-						return;
-					}
+					currentState = STATE_RESULT;
+					raceStartTime = 0; // Reset for next race
+					return;
 				}
 			}
 		}
 		// If not the lucky cyclist, check if the others are still in the race
 		// If they are, move them the minimum amount (1 step)
-		else 
+		else
 		{
-			if (cyclistPositions[j] < RACE_DISTANCE)
+			if (cyclistPositions[i] < RACE_DISTANCE)
 			{
-				// Move other cyclists minimum amount (1 step)
-				steppers[j].move(1);
-				steppers[j].run();
-				cyclistPositions[j]++;
+				// Move other cyclists minimum amount (5 step)
+				if (steppers[i].distanceToGo() == 0)
+				{
+					steppers[i].move(5);
+				}
+				steppers[i].run();
+				cyclistPositions[i] = steppers[i].currentPosition();
 			}
 			// Check if any of the other cyclists have reached the finish line
 			// If so, stop them and check for the winner
 			else
 			{
 				// Stop the stepper if it reaches the finish line
-				steppers[j].stop();
+				steppers[i].stop();
 				checkWinner();
-				if (raceFinished) 
-				{	
+				if (raceFinished)
+				{
 					currentState = STATE_RESULT;
+					raceStartTime = 0; // Reset for next race
 					return;
 				}
 			}
 		}
 	}
-	// Delay between steps
-	// Randomize delay to simulate different speeds
-	delay(STEP_DELAY + delayJitter);
 }
 
 void handleResult()
@@ -343,7 +364,7 @@ void handleResult()
 	char key = getDebouncedKey();
 	// Check if reset key was pressed
 	if (key == 'C')
-	{ 
+	{
 		resetRace();
 		updateDisplay("Resetting", "Press A to start");
 		currentState = STATE_IDLE;
@@ -377,37 +398,54 @@ void checkWinner()
 
 void resetRace()
 {
-    // Move each bike backwards until its limit switch is triggered
-    for (int i = 0; i < NUM_CYCLISTS; i++) {
-        steppers[i].setMaxSpeed(1000);
-        steppers[i].setAcceleration(500);
-        steppers[i].setSpeed(-300); // Negative speed to rewind
-        steppers[i].moveTo(-RACE_DISTANCE); // Move back enough distance
-    }
+	// Move each bike backwards until its limit switch is triggered
+	for (int i = 0; i < NUM_CYCLISTS; i++)
+	{
+		steppers[i].setMaxSpeed(1000);
+		steppers[i].setAcceleration(500);
+		steppers[i].setSpeed(-300);			// Negative speed to rewind
+		steppers[i].moveTo(-RACE_DISTANCE); // Move back enough distance
+	}
 
-    bool allAtStart = false;
-    while (!allAtStart) {
-        allAtStart = true;
-        for (int i = 0; i < NUM_CYCLISTS; i++) {
-            if (digitalRead(limitSwitchPins[i]) == HIGH) { // Not at start
-                steppers[i].run();
-                allAtStart = false;
-            } else {
-                steppers[i].stop();
-                steppers[i].setCurrentPosition(0); // Reset position
-            }
+	unsigned long resetStart = millis();
+
+	bool allAtStart = false;
+	while (!allAtStart)
+	{
+
+		// Timeout check
+        if (millis() - resetStart > resetTimeout)
+        {
+            updateDisplay("Reset Error", "Check switches!");
+            break; // Exit loop if timeout
         }
-        // Optional: add a small delay to avoid busy-waiting
-        delay(2);
-    }
 
-    // Reset positions and state
-    for (int i = 0; i < NUM_CYCLISTS; i++) {
-        cyclistPositions[i] = 0;
-        steppers[i].setCurrentPosition(0);
-    }
-    raceFinished = false;
-    currentScenario = -1;
+		allAtStart = true;
+		for (int i = 0; i < NUM_CYCLISTS; i++)
+		{
+			if (digitalRead(limitSwitchPins[i]) == HIGH)
+			{ // Not at start
+				steppers[i].run();
+				allAtStart = false;
+			}
+			else
+			{
+				steppers[i].stop();
+				steppers[i].setCurrentPosition(0); // Reset position
+			}
+		}
+		// Optional: add a small delay to avoid busy-waiting
+		delay(2);
+	}
+
+	// Reset positions and state
+	for (int i = 0; i < NUM_CYCLISTS; i++)
+	{
+		cyclistPositions[i] = 0;
+		steppers[i].setCurrentPosition(0);
+	}
+	raceFinished = false;
+	currentScenario = -1;
 }
 
 void initializeSteppers()
@@ -421,14 +459,17 @@ void initializeSteppers()
 }
 
 // Debounce function for keypad input
-char getDebouncedKey() {
-    char key = getDebouncedKey();
-    if (key) {
-        unsigned long now = millis();
-        if (now - lastKeypadTime > debounceDelay) {
-            lastKeypadTime = now;
-            return key;
-        }
-    }
-    return NO_KEY;
+char getDebouncedKey()
+{
+	char key = keypad.getKey();
+	if (key)
+	{
+		unsigned long now = millis();
+		if (now - lastKeypadTime > debounceDelay)
+		{
+			lastKeypadTime = now;
+			return key;
+		}
+	}
+	return NO_KEY;
 }
