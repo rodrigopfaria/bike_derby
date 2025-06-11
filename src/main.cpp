@@ -241,7 +241,7 @@ void handleRace()
 
   // Keyboard polling check for abort key
   // todo: check if thats enough polling
-  char key = keypad.getKey();
+  char key = getDebouncedKey();
   if (key == 'C') // 'RESET' key
   { 
     resetRace();
