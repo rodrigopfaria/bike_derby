@@ -1,4 +1,8 @@
+#ifndef PLATFORMIO_UNIT_TEST
+#if defined(ARDUINO) || defined(__ARDUINO__)
 #include <Arduino.h>
+#endif
+#endif
 #include <unity.h>
 #include <vector>
 #include <string>
@@ -328,3 +332,10 @@ void setup() {
 void loop() {
     // not used
 }
+
+#ifndef ARDUINO
+int main() {
+    setup();
+    return 0;
+}
+#endif
