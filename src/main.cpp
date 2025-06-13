@@ -6,6 +6,13 @@
 #include <AccelStepper.h>
 
 //------------------------------------
+// secondary stepper motor - dummyStepper
+#define IN1_dummyStepper 7
+#define IN2_dummyStepper 6
+#define IN3_dummyStepper 5
+#define IN4_dummyStepper 4
+
+//------------------------------------
 // LCD setup (16x2 LCD example)
 const int rs = 51, en = 53, d4 = 49, d5 = 47, d6 = 45, d7 = 43;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
@@ -25,16 +32,20 @@ Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
 
 //------------------------------------
 // Stepper setup (6 motors, DRV8825 drivers)
-#define NUM_CYCLISTS 4
-AccelStepper steppers[NUM_CYCLISTS] = {
-	AccelStepper(AccelStepper::DRIVER, 30, 31),
-	AccelStepper(AccelStepper::DRIVER, 32, 33),
-	AccelStepper(AccelStepper::DRIVER, 34, 35),
-	AccelStepper(AccelStepper::DRIVER, 36, 37)};
+// #define NUM_CYCLISTS 4
+// AccelStepper steppers[NUM_CYCLISTS] = {
+// 	AccelStepper(AccelStepper::DRIVER, 30, 31),
+// 	AccelStepper(AccelStepper::DRIVER, 32, 33),
+// 	AccelStepper(AccelStepper::DRIVER, 34, 35),
+// 	AccelStepper(AccelStepper::DRIVER, 36, 37)};
 
-//------------------------------------
-// Limit switch setup
-const int limitSwitchPins[NUM_CYCLISTS] = {22, 23, 24, 25};
+#define NUM_CYCLISTS 1
+AccelStepper steppers[NUM_CYCLISTS] = {
+	AccelStepper(AccelStepper::HALF4WIRE, IN1_dummyStepper, IN3_dummyStepper, IN2_dummyStepper, IN4_dummyStepper)};
+
+// //------------------------------------
+// // Limit switch setup
+// const int limitSwitchPins[NUM_CYCLISTS] = {22, 23, 24, 25};
 
 //------------------------------------
 // Constants
@@ -44,25 +55,25 @@ const int BOOST_CHANCE = 10;			 // % Chance of speed boost (double step)
 const int STEP_DELAY = 100;				 // Base delay between steps (ms)
 const unsigned long debounceDelay = 200; // milliseconds
 
-// Scenario probabilities (must total to 100)
-const uint8_t scenarioProbabilities[NUM_SCENARIOS][NUM_CYCLISTS] = {
-	{30, 20, 15, 15}, // Scenario 0
-	{10, 10, 30, 10}, // Scenario 1
-	{25, 25, 10, 10}, // Scenario 2
-	{5, 5, 20, 40},	  // Scenario 3
-	{16, 16, 16, 16}, // Scenario 4
-	{10, 25, 15, 25}  // Scenario 5
-};
+// // Scenario probabilities (must total to 100)
+// const uint8_t scenarioProbabilities[NUM_SCENARIOS][NUM_CYCLISTS] = {
+// 	{30, 20, 15, 15}, // Scenario 0
+// 	{10, 10, 30, 10}, // Scenario 1
+// 	{25, 25, 10, 10}, // Scenario 2
+// 	{5, 5, 20, 40},	  // Scenario 3
+// 	{16, 16, 16, 16}, // Scenario 4
+// 	{10, 25, 15, 25}  // Scenario 5
+// };
 
 // Global variables
 int currentScenario = 0;
 int cyclistPositions[NUM_CYCLISTS] = {0};
 bool raceFinished = false;
-unsigned long lastKeypadTime = 0;		 // used for debouncing
-unsigned long lastRaceStepTime = 0;		 // used for delay between steps
-int currentStepDelay = STEP_DELAY;		 // current step delay, can be adjusted based on scenario
-unsigned long raceStartTime = 0;		 // used to track race timeout
-const unsigned long raceTimeout = 60000; // 1 minute
+unsigned long lastKeypadTime = 0;		  // used for debouncing
+unsigned long lastRaceStepTime = 0;		  // used for delay between steps
+int currentStepDelay = STEP_DELAY;		  // current step delay, can be adjusted based on scenario
+unsigned long raceStartTime = 0;		  // used to track race timeout
+const unsigned long raceTimeout = 60000;  // 1 minute
 const unsigned long resetTimeout = 30000; // 30 seconds
 
 //------------------------------------
@@ -101,11 +112,11 @@ void setup()
 {
 	Serial.begin(9600);
 
-	// Set limit switch pins as input with pull-up resistors
-	for (int i = 0; i < NUM_CYCLISTS; i++)
-	{
-		pinMode(limitSwitchPins[i], INPUT_PULLUP); // Assuming active LOW
-	}
+	// // Set limit switch pins as input with pull-up resistors
+	// for (int i = 0; i < NUM_CYCLISTS; i++)
+	// {
+	// 	pinMode(limitSwitchPins[i], INPUT_PULLUP); // Assuming active LOW
+	// }
 
 	lcd.begin(16, 2);
 	updateDisplay("Horse Race", "Press A to Start");
@@ -161,7 +172,7 @@ int getWeightedRandomCyclist(uint8_t scenarioIndex)
 	// Goes through each cyclist's probabilities and checks if it beats a random chance value
 	for (int i = 0; i < NUM_CYCLISTS; i++)
 	{
-		cumulative += scenarioProbabilities[scenarioIndex][i];
+		// cumulative += scenarioProbabilities[scenarioIndex][i];
 		// If the probability is greater, than that cyclist advances and the others don't
 		if (r < cumulative)
 		{
@@ -199,15 +210,15 @@ void handleSetup()
 		currentScenario = key - '1';
 
 		// update display with selected scenario
-		updateDisplay("Scenario Selected", "SCN " + String(currentScenario + 1));
+		updateDisplay("Press B to ready", "Scenario " + String(currentScenario + 1));
 	}
 
 	// 'Ready' button
 	if (key == 'B')
 	{
-		// Check if a scenario is selected
-		if (currentScenario >= 0)
-		{
+		// // Check if a scenario is selected
+		// if (currentScenario >= 0)
+		// {
 			// Reset positions and raceFinished flag
 			raceFinished = false;
 			for (int i = 0; i < NUM_CYCLISTS; i++)
@@ -220,13 +231,13 @@ void handleSetup()
 				cyclistPositions[i] = 0;
 				steppers[i].setCurrentPosition(0);
 			}
-			updateDisplay("Ready Mode", "Press D to Go");
+			updateDisplay("Ready!!", "Press D to Start");
 			currentState = STATE_READY;
-		}
-		else
-		{
-			updateDisplay("Select horse", "Then press B");
-		}
+		// }
+		// else
+		// {
+		// 	updateDisplay("Select horse", "Then press B");
+		// }
 	}
 }
 
@@ -237,7 +248,7 @@ void handleReady()
 	// Start race
 	if (key == 'D')
 	{
-		updateDisplay("Race Starting", "Go!");
+		updateDisplay("Race Starting", "Press C to Abort");
 		currentState = STATE_RACE;
 	}
 }
@@ -265,98 +276,98 @@ void handleRace()
 		return;
 	}
 
-	// Only proceed if enough time has passed since the last step
-	unsigned long now = millis();
-	if (now - lastRaceStepTime < currentStepDelay)
-	{
-		// Still waiting, just return and let loop() call us again
-		return;
-	}
-	lastRaceStepTime = now;
-	// Randomize delay to simulate different speeds
-	currentStepDelay = STEP_DELAY + random(-20, 20);
+	steppers[0].moveTo(500000); 
+	steppers[0].run();
 
-	// Check if any cyclist has reached the finish line
-	// If so, set raceFinished to true and display the winner
-	checkWinner();
+	// // Only proceed if enough time has passed since the last step
+	// unsigned long now = millis();
+	// if (now - lastRaceStepTime < currentStepDelay)
+	// {
+	// 	// Still waiting, just return and let loop() call us again
+	// 	return;
+	// }
+	// lastRaceStepTime = now;
+	// // Randomize delay to simulate different speeds
+	// currentStepDelay = STEP_DELAY + random(-20, 20);
 
-	if (raceFinished)
-	{
-		currentState = STATE_RESULT;
-		raceStartTime = 0; // Reset for next race
-		return;
-	}
+	// // Check if any cyclist has reached the finish line
+	// // If so, set raceFinished to true and display the winner
+	// checkWinner();
 
-	// Get a random cyclist based on the current scenario
-	// This function will return a cyclist index based on the scenario probabilities
-	// This cyclist will be the one to move the most in this iteration
-	int luckyCyclist = getWeightedRandomCyclist(currentScenario);
+	// if (raceFinished)
+	// {
+	// 	currentState = STATE_RESULT;
+	// 	raceStartTime = 0; // Reset for next race
+	// 	return;
+	// }
 
-	// Add a different, slight randomness to step delay on every itereation (±20 ms)
-	int delayJitter = random(-20, 20);
+	// // Get a random cyclist based on the current scenario
+	// // This function will return a cyclist index based on the scenario probabilities
+	// // This cyclist will be the one to move the most in this iteration
+	// int luckyCyclist = getWeightedRandomCyclist(currentScenario);
 
-	// Move cyclists
-	for (int i = 0; i < NUM_CYCLISTS; i++)
-	{
-		// Check if the lucky cyclist is the one to move
-		// If so, move them the most (3 steps) and check if they reached the finish line
-		// Else, move the other cyclists a minimum amount (1 step)
-		if (i == luckyCyclist)
-		{
-			int moveSteps = (random(0, 100) < BOOST_CHANCE) ? 15 : 5; // 3x boost or normal
-			if (cyclistPositions[luckyCyclist] < RACE_DISTANCE)
-			{
-				if (steppers[luckyCyclist].distanceToGo() == 0)
-				{
-					steppers[luckyCyclist].move(moveSteps);
-				}
-				steppers[luckyCyclist].run();
-				cyclistPositions[luckyCyclist] = steppers[luckyCyclist].currentPosition();
-			}
-			// Check if the lucky cyclist has reached the finish line
-			else
-			{
-				// Stop the stepper if it reaches the finish line
-				steppers[luckyCyclist].stop();
-				checkWinner();
-				if (raceFinished)
-				{
-					currentState = STATE_RESULT;
-					raceStartTime = 0; // Reset for next race
-					return;
-				}
-			}
-		}
-		// If not the lucky cyclist, check if the others are still in the race
-		// If they are, move them the minimum amount (1 step)
-		else
-		{
-			if (cyclistPositions[i] < RACE_DISTANCE)
-			{
-				// Move other cyclists minimum amount (5 step)
-				if (steppers[i].distanceToGo() == 0)
-				{
-					steppers[i].move(5);
-				}
-				steppers[i].run();
-				cyclistPositions[i] = steppers[i].currentPosition();
-			}
-			// Check if any of the other cyclists have reached the finish line
-			// If so, stop them and check for the winner
-			else
-			{
-				// Stop the stepper if it reaches the finish line
-				steppers[i].stop();
-				checkWinner();
-				if (raceFinished)
-				{
-					currentState = STATE_RESULT;
-					raceStartTime = 0; // Reset for next race
-					return;
-				}
-			}
-		}
-	}
+	// // Move cyclists
+	// for (int i = 0; i < NUM_CYCLISTS; i++)
+	// {
+	// 	// Check if the lucky cyclist is the one to move
+	// 	// If so, move them the most (3 steps) and check if they reached the finish line
+	// 	// Else, move the other cyclists a minimum amount (1 step)
+	// 	if (i == luckyCyclist)
+	// 	{
+	// 		int moveSteps = (random(0, 100) < BOOST_CHANCE) ? 15 : 5; // 3x boost or normal
+	// 		if (cyclistPositions[luckyCyclist] < RACE_DISTANCE)
+	// 		{
+	// 			if (steppers[luckyCyclist].distanceToGo() == 0)
+	// 			{
+	// 				steppers[luckyCyclist].move(moveSteps);
+	// 			}
+	// 			steppers[luckyCyclist].run();
+	// 			cyclistPositions[luckyCyclist] = steppers[luckyCyclist].currentPosition();
+	// 		}
+	// 		// Check if the lucky cyclist has reached the finish line
+	// 		else
+	// 		{
+	// 			// Stop the stepper if it reaches the finish line
+	// 			steppers[luckyCyclist].stop();
+	// 			checkWinner();
+	// 			if (raceFinished)
+	// 			{
+	// 				currentState = STATE_RESULT;
+	// 				raceStartTime = 0; // Reset for next race
+	// 				return;
+	// 			}
+	// 		}
+	// 	}
+	// 	// If not the lucky cyclist, check if the others are still in the race
+	// 	// If they are, move them the minimum amount (1 step)
+	// 	else
+	// 	{
+	// 		if (cyclistPositions[i] < RACE_DISTANCE)
+	// 		{
+	// 			// Move other cyclists minimum amount (5 step)
+	// 			if (steppers[i].distanceToGo() == 0)
+	// 			{
+	// 				steppers[i].move(5);
+	// 			}
+	// 			steppers[i].run();
+	// 			cyclistPositions[i] = steppers[i].currentPosition();
+	// 		}
+	// 		// Check if any of the other cyclists have reached the finish line
+	// 		// If so, stop them and check for the winner
+	// 		else
+	// 		{
+	// 			// Stop the stepper if it reaches the finish line
+	// 			steppers[i].stop();
+	// 			checkWinner();
+	// 			if (raceFinished)
+	// 			{
+	// 				currentState = STATE_RESULT;
+	// 				raceStartTime = 0; // Reset for next race
+	// 				return;
+	// 			}
+	// 		}
+	// 	}
+	// }
 }
 
 void handleResult()
@@ -414,25 +425,25 @@ void resetRace()
 	{
 
 		// Timeout check
-        if (millis() - resetStart > resetTimeout)
-        {
-            updateDisplay("Reset Error", "Check switches!");
-            break; // Exit loop if timeout
-        }
+		if (millis() - resetStart > resetTimeout)
+		{
+			updateDisplay("Reset Error", "Check switches!");
+			break; // Exit loop if timeout
+		}
 
 		allAtStart = true;
 		for (int i = 0; i < NUM_CYCLISTS; i++)
 		{
-			if (digitalRead(limitSwitchPins[i]) == HIGH)
-			{ // Not at start
-				steppers[i].run();
-				allAtStart = false;
-			}
-			else
-			{
-				steppers[i].stop();
-				steppers[i].setCurrentPosition(0); // Reset position
-			}
+			// if (digitalRead(limitSwitchPins[i]) == HIGH)
+			// { // Not at start
+			// 	steppers[i].run();
+			// 	allAtStart = false;
+			// }
+			// else
+			// {
+			// 	steppers[i].stop();
+			// 	steppers[i].setCurrentPosition(0); // Reset position
+			// }
 		}
 		// Optional: add a small delay to avoid busy-waiting
 		delay(2);
