@@ -45,7 +45,8 @@ AccelStepper steppers[NUM_CYCLISTS] = {
 
 // //------------------------------------
 // // Limit switch setup
-// const int limitSwitchPins[NUM_CYCLISTS] = {22, 23, 24, 25};
+int limitSwitchPinsStart[NUM_CYCLISTS] = {41}; // adjust as needed
+int limitSwitchPinsEnd[NUM_CYCLISTS] = {39};
 
 //------------------------------------
 // Constants
@@ -100,6 +101,7 @@ void checkWinner();
 void resetRace();
 void initializeSteppers();
 char getDebouncedKey();
+void calibrateSteppers();
 /*
   This function determines which cyclist will advance in the current iteration based on the scenario's probabilities
   input: scenarioIndex - selection made by game master
@@ -113,16 +115,19 @@ void setup()
 	Serial.begin(9600);
 
 	// // Set limit switch pins as input with pull-up resistors
-	// for (int i = 0; i < NUM_CYCLISTS; i++)
-	// {
-	// 	pinMode(limitSwitchPins[i], INPUT_PULLUP); // Assuming active LOW
-	// }
+	for (int i = 0; i < NUM_CYCLISTS; i++)
+	{
+		pinMode(limitSwitchPinsStart[i], INPUT_PULLUP);
+		pinMode(limitSwitchPinsEnd[i], INPUT_PULLUP);
+	}
 
 	lcd.begin(16, 2);
-	updateDisplay("Horse Race", "Press A to Start");
 
 	initializeSteppers();
+	updateDisplay("CALIBRATING", "....");
+	calibrateSteppers();
 
+	updateDisplay("Horse Race", "Press A to Start");
 	currentScenario = -1; // Selectable between 0–5
 }
 
@@ -219,20 +224,20 @@ void handleSetup()
 		// // Check if a scenario is selected
 		// if (currentScenario >= 0)
 		// {
-			// Reset positions and raceFinished flag
-			raceFinished = false;
-			for (int i = 0; i < NUM_CYCLISTS; i++)
-			{
-				// Stop all steppers
-				steppers[i].stop();
-				// Reset stepper settings
-				initializeSteppers();
-				// Reset positions
-				cyclistPositions[i] = 0;
-				steppers[i].setCurrentPosition(0);
-			}
-			updateDisplay("Ready!!", "Press D to Start");
-			currentState = STATE_READY;
+		// Reset positions and raceFinished flag
+		raceFinished = false;
+		for (int i = 0; i < NUM_CYCLISTS; i++)
+		{
+			// Stop all steppers
+			steppers[i].stop();
+			// Reset stepper settings
+			initializeSteppers();
+			// Reset positions
+			cyclistPositions[i] = 0;
+			steppers[i].setCurrentPosition(0);
+		}
+		updateDisplay("Ready!!", "Press D to Start");
+		currentState = STATE_READY;
 		// }
 		// else
 		// {
@@ -276,7 +281,7 @@ void handleRace()
 		return;
 	}
 
-	steppers[0].moveTo(500000); 
+	steppers[0].moveTo(500000);
 	steppers[0].run();
 
 	// // Only proceed if enough time has passed since the last step
@@ -466,6 +471,56 @@ void initializeSteppers()
 		steppers[i].setMaxSpeed(1000);
 		steppers[i].setAcceleration(500);
 		steppers[i].setSpeed(200);
+	}
+}
+
+void calibrateSteppers()
+{
+	for (int i = 0; i < NUM_CYCLISTS; i++)
+	{
+		// Move backward to find the start limit switch
+		steppers[i].setMaxSpeed(1000);
+		steppers[i].setAcceleration(8000);
+		steppers[i].moveTo(-10000); // move far enough to reach limit
+
+		while (digitalRead(limitSwitchPinsStart[i]) == HIGH)
+		{
+			steppers[i].run();
+		}
+
+		steppers[i].stop(); // stop immediately
+		while (steppers[i].isRunning())
+			steppers[i].run(); // wait until stopped
+
+		steppers[i].setCurrentPosition(0); // save as initial (home) position
+
+		delay(500); // brief pause
+
+		// Move forward to find the end limit switch
+		steppers[i].moveTo(10000); // move far enough forward
+
+		while (digitalRead(limitSwitchPinsEnd[i]) == HIGH)
+		{
+			steppers[i].run();
+		}
+
+		steppers[i].stop();
+		while (steppers[i].isRunning())
+			steppers[i].run();
+
+		long endPosition = steppers[i].currentPosition(); // store max range if needed
+
+		Serial.print("Stepper ");
+		Serial.print(i);
+		Serial.print(" calibrated. Max steps: ");
+		Serial.println(endPosition);
+
+		// move back to home
+		steppers[i].moveTo(0);
+		while (steppers[i].distanceToGo() != 0)
+		{
+			steppers[i].run();
+		}
 	}
 }
 
