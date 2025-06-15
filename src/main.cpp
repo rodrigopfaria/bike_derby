@@ -7,7 +7,7 @@
 //------------------------------------
 // Constants
 const int NUM_SCENARIOS = 6;
-const int RACE_DISTANCE = 1000;           // todo: calibrate total steps to finish line
+const int RACE_DISTANCE = 100000;           // todo: change this to limitswtich distance
 const int BOOST_CHANCE = 10;              // % Chance of speed boost (double step)
 const int STEP_DELAY = 100;               // Base delay between steps (ms)
 const unsigned long debounceDelay = 200;  // milliseconds

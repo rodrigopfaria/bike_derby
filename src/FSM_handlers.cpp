@@ -45,8 +45,6 @@ void handleSetup()
 		{
 			// Stop all steppers
 			steppers[i].stop();
-			// Reset stepper settings
-			initializeSteppers();
 			// Reset positions
 			cyclistPositions[i] = 0;
 			steppers[i].setCurrentPosition(0);
@@ -96,9 +94,6 @@ void handleRace()
 		return;
 	}
 
-	steppers[0].moveTo(500000);
-	steppers[0].run();
-
 	// // Only proceed if enough time has passed since the last step
 	// unsigned long now = millis();
 	// if (now - lastRaceStepTime < currentStepDelay)
@@ -110,84 +105,84 @@ void handleRace()
 	// // Randomize delay to simulate different speeds
 	// currentStepDelay = STEP_DELAY + random(-20, 20);
 
-	// // Check if any cyclist has reached the finish line
-	// // If so, set raceFinished to true and display the winner
+	// Check if any cyclist has reached the finish line
+	// If so, set raceFinished to true and display the winner
 	// checkWinner();
 
-	// if (raceFinished)
-	// {
-	// 	currentState = STATE_RESULT;
-	// 	raceStartTime = 0; // Reset for next race
-	// 	return;
-	// }
+	if (raceFinished)
+	{
+		currentState = STATE_RESULT;
+		raceStartTime = 0; // Reset for next race
+		return;
+	}
 
-	// // Get a random cyclist based on the current scenario
-	// // This function will return a cyclist index based on the scenario probabilities
-	// // This cyclist will be the one to move the most in this iteration
-	// int luckyCyclist = getWeightedRandomCyclist(currentScenario);
+	// Get a random cyclist based on the current scenario
+	// This function will return a cyclist index based on the scenario probabilities
+	// This cyclist will be the one to move the most in this iteration
+	int luckyCyclist = getWeightedRandomCyclist(currentScenario);
 
-	// // Move cyclists
-	// for (int i = 0; i < NUM_CYCLISTS; i++)
-	// {
-	// 	// Check if the lucky cyclist is the one to move
-	// 	// If so, move them the most (3 steps) and check if they reached the finish line
-	// 	// Else, move the other cyclists a minimum amount (1 step)
-	// 	if (i == luckyCyclist)
-	// 	{
-	// 		int moveSteps = (random(0, 100) < BOOST_CHANCE) ? 15 : 5; // 3x boost or normal
-	// 		if (cyclistPositions[luckyCyclist] < RACE_DISTANCE)
-	// 		{
-	// 			if (steppers[luckyCyclist].distanceToGo() == 0)
-	// 			{
-	// 				steppers[luckyCyclist].move(moveSteps);
-	// 			}
-	// 			steppers[luckyCyclist].run();
-	// 			cyclistPositions[luckyCyclist] = steppers[luckyCyclist].currentPosition();
-	// 		}
-	// 		// Check if the lucky cyclist has reached the finish line
-	// 		else
-	// 		{
-	// 			// Stop the stepper if it reaches the finish line
-	// 			steppers[luckyCyclist].stop();
-	// 			checkWinner();
-	// 			if (raceFinished)
-	// 			{
-	// 				currentState = STATE_RESULT;
-	// 				raceStartTime = 0; // Reset for next race
-	// 				return;
-	// 			}
-	// 		}
-	// 	}
-	// 	// If not the lucky cyclist, check if the others are still in the race
-	// 	// If they are, move them the minimum amount (1 step)
-	// 	else
-	// 	{
-	// 		if (cyclistPositions[i] < RACE_DISTANCE)
-	// 		{
-	// 			// Move other cyclists minimum amount (5 step)
-	// 			if (steppers[i].distanceToGo() == 0)
-	// 			{
-	// 				steppers[i].move(5);
-	// 			}
-	// 			steppers[i].run();
-	// 			cyclistPositions[i] = steppers[i].currentPosition();
-	// 		}
-	// 		// Check if any of the other cyclists have reached the finish line
-	// 		// If so, stop them and check for the winner
-	// 		else
-	// 		{
-	// 			// Stop the stepper if it reaches the finish line
-	// 			steppers[i].stop();
-	// 			checkWinner();
-	// 			if (raceFinished)
-	// 			{
-	// 				currentState = STATE_RESULT;
-	// 				raceStartTime = 0; // Reset for next race
-	// 				return;
-	// 			}
-	// 		}
-	// 	}
-	// }
+	// Move cyclists
+	for (int i = 0; i < NUM_CYCLISTS; i++)
+	{
+		// Check if the lucky cyclist is the one to move
+		// If so, move them the most (3 steps) and check if they reached the finish line
+		// Else, move the other cyclists a minimum amount (1 step)
+		if (i == luckyCyclist)
+		{
+			int moveSteps = (random(0, 100) < BOOST_CHANCE) ? 1500 : 500; // 3x boost or normal
+			// if (cyclistPositions[luckyCyclist] < RACE_DISTANCE)
+			// {
+				if (steppers[luckyCyclist].distanceToGo() == 0)
+				{
+					steppers[luckyCyclist].moveTo(cyclistPositions[luckyCyclist] + moveSteps);
+				}
+				steppers[luckyCyclist].run();
+				cyclistPositions[luckyCyclist] = steppers[luckyCyclist].currentPosition();
+			// }
+			// Check if the lucky cyclist has reached the finish line
+			// else
+			// {
+			// 	// Stop the stepper if it reaches the finish line
+			// 	steppers[luckyCyclist].stop();
+			// 	checkWinner();
+			// 	if (raceFinished)
+			// 	{
+			// 		currentState = STATE_RESULT;
+			// 		raceStartTime = 0; // Reset for next race
+			// 		return;
+			// 	}
+			// }
+		}
+		// If not the lucky cyclist, check if the others are still in the race
+		// If they are, move them the minimum amount (1 step)
+		else
+		{
+			// if (cyclistPositions[i] < RACE_DISTANCE)
+			// {
+				// Move other cyclists minimum amount (5 step)
+				if (steppers[i].distanceToGo() == 0)
+				{
+					steppers[i].moveTo(cyclistPositions[i] + 500);
+				}
+				steppers[i].run();
+				cyclistPositions[i] = steppers[i].currentPosition();
+			// }
+			// Check if any of the other cyclists have reached the finish line
+			// If so, stop them and check for the winner
+			// else
+			// {
+			// 	// Stop the stepper if it reaches the finish line
+			// 	steppers[i].stop();
+			// 	checkWinner();
+			// 	if (raceFinished)
+			// 	{
+			// 		currentState = STATE_RESULT;
+			// 		raceStartTime = 0; // Reset for next race
+			// 		return;
+			// 	}
+			// }
+		}
+	}
 }
 
 void handleResult()
