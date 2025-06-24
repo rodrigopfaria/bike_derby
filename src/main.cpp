@@ -36,14 +36,15 @@ Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, KB_ROWS, KB_COLS);
 
 // Stepper setup (6 motors, DRV8825 drivers)
 // // define number of cyclist in config.h file
-// AccelStepper steppers[NUM_CYCLISTS] = {
-// 	AccelStepper(AccelStepper::DRIVER, 30, 31),
+AccelStepper steppers[NUM_CYCLISTS] = {
+	AccelStepper(AccelStepper::DRIVER, 30, 31)
 // 	AccelStepper(AccelStepper::DRIVER, 32, 33),
 // 	AccelStepper(AccelStepper::DRIVER, 34, 35),
-// 	AccelStepper(AccelStepper::DRIVER, 36, 37)};
+// 	AccelStepper(AccelStepper::DRIVER, 36, 37)
+};
 
-AccelStepper steppers[NUM_CYCLISTS] = {
-	AccelStepper(AccelStepper::HALF4WIRE, IN1_dummyStepper, IN3_dummyStepper, IN2_dummyStepper, IN4_dummyStepper)};
+// AccelStepper steppers[NUM_CYCLISTS] = {
+// 	AccelStepper(AccelStepper::HALF4WIRE, IN1_dummyStepper, IN3_dummyStepper, IN2_dummyStepper, IN4_dummyStepper)};
 
 // // Scenario probabilities (must total to 100)
 // const uint8_t scenarioProbabilities[NUM_SCENARIOS][NUM_CYCLISTS] = {
