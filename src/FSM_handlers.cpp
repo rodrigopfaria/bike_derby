@@ -54,7 +54,7 @@ void handleSetup()
 		// }
 		// else
 		// {
-		// 	updateDisplay("Select horse", "Then press B");
+		// 	updateDisplay("Select rider", "Then press B");
 		// }
 	}
 }
@@ -131,34 +131,36 @@ void handleRace()
 		{
 			int moveSteps = (random(0, 100) < BOOST_CHANCE) ? 1500 : 500; // 3x boost or normal
 			// if (cyclistPositions[luckyCyclist] < RACE_DISTANCE)
-			// {
+			if (digitalRead(limitSwitchPinsEnd[i]) == HIGH)
+			{
 				if (steppers[luckyCyclist].distanceToGo() == 0)
 				{
 					steppers[luckyCyclist].moveTo(cyclistPositions[luckyCyclist] + moveSteps);
 				}
 				steppers[luckyCyclist].run();
 				cyclistPositions[luckyCyclist] = steppers[luckyCyclist].currentPosition();
-			// }
+			}
 			// Check if the lucky cyclist has reached the finish line
-			// else
-			// {
-			// 	// Stop the stepper if it reaches the finish line
-			// 	steppers[luckyCyclist].stop();
-			// 	checkWinner();
-			// 	if (raceFinished)
-			// 	{
-			// 		currentState = STATE_RESULT;
-			// 		raceStartTime = 0; // Reset for next race
-			// 		return;
-			// 	}
-			// }
+			else
+			{
+			 	// Stop the stepper if it reaches the finish line
+			 	steppers[luckyCyclist].stop();
+			 	checkWinner();
+			 	if (raceFinished)
+			 	{
+			 		currentState = STATE_RESULT;
+			 		raceStartTime = 0; // Reset for next race
+			 		return;
+			 	}
+			}
 		}
 		// If not the lucky cyclist, check if the others are still in the race
 		// If they are, move them the minimum amount (1 step)
 		else
 		{
 			// if (cyclistPositions[i] < RACE_DISTANCE)
-			// {
+			if (digitalRead(limitSwitchPinsEnd[i]) == HIGH)
+			{
 				// Move other cyclists minimum amount (5 step)
 				if (steppers[i].distanceToGo() == 0)
 				{
@@ -166,21 +168,21 @@ void handleRace()
 				}
 				steppers[i].run();
 				cyclistPositions[i] = steppers[i].currentPosition();
-			// }
+			}
 			// Check if any of the other cyclists have reached the finish line
 			// If so, stop them and check for the winner
-			// else
-			// {
-			// 	// Stop the stepper if it reaches the finish line
-			// 	steppers[i].stop();
-			// 	checkWinner();
-			// 	if (raceFinished)
-			// 	{
-			// 		currentState = STATE_RESULT;
-			// 		raceStartTime = 0; // Reset for next race
-			// 		return;
-			// 	}
-			// }
+			else
+			{
+				// Stop the stepper if it reaches the finish line
+				steppers[i].stop();
+			 	checkWinner();
+			 	if (raceFinished)
+			 	{
+			 		currentState = STATE_RESULT;
+			 		raceStartTime = 0; // Reset for next race
+			 		return;
+			 	}
+			}
 		}
 	}
 }

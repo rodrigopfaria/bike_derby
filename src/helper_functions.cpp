@@ -36,10 +36,13 @@ void checkWinner()
 {
     for (int i = 0; i < NUM_CYCLISTS; i++)
     {
-        if (steppers[i].currentPosition() >= RACE_DISTANCE)
+        //if (steppers[i].currentPosition() >= RACE_DISTANCE)
+        // Check if the end limit switch is pressed for each cyclist
+        // If so, stop the stepper and declare the winner
+        if (digitalRead(limitSwitchPinsEnd[i]) == LOW)
         {
             raceFinished = true;
-            String resultText = "Winner: Horse " + String(i + 1);
+            String resultText = "Winner: Rider " + String(i + 1);
             updateDisplay("Race Finished", resultText);
             return;
         }

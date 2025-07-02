@@ -1,4 +1,4 @@
-// Horse Race Project Template - Arduino Mega
+// Bike Race Project Template - Arduino Mega
 
 #include "Config.h"
 #include "FSM_handlers.h"
@@ -7,7 +7,7 @@
 //------------------------------------
 // Constants
 const int NUM_SCENARIOS = 6;
-const int RACE_DISTANCE = 100000;           // todo: change this to limitswtich distance
+const long RACE_DISTANCE = 100000;    	  // todo: change this to limitswtich distance
 const int BOOST_CHANCE = 10;              // % Chance of speed boost (double step)
 const int STEP_DELAY = 100;               // Base delay between steps (ms)
 const unsigned long debounceDelay = 200;  // milliseconds
@@ -36,14 +36,15 @@ Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, KB_ROWS, KB_COLS);
 
 // Stepper setup (6 motors, DRV8825 drivers)
 // // define number of cyclist in config.h file
-// AccelStepper steppers[NUM_CYCLISTS] = {
-// 	AccelStepper(AccelStepper::DRIVER, 30, 31),
+AccelStepper steppers[NUM_CYCLISTS] = {
+ 	AccelStepper(AccelStepper::DRIVER, 30, 31),
 // 	AccelStepper(AccelStepper::DRIVER, 32, 33),
 // 	AccelStepper(AccelStepper::DRIVER, 34, 35),
-// 	AccelStepper(AccelStepper::DRIVER, 36, 37)};
+// 	AccelStepper(AccelStepper::DRIVER, 36, 37)
+};
 
-AccelStepper steppers[NUM_CYCLISTS] = {
-	AccelStepper(AccelStepper::HALF4WIRE, IN1_dummyStepper, IN3_dummyStepper, IN2_dummyStepper, IN4_dummyStepper)};
+//AccelStepper steppers[NUM_CYCLISTS] = {
+//	AccelStepper(AccelStepper::HALF4WIRE, IN1_dummyStepper, IN3_dummyStepper, IN2_dummyStepper, IN4_dummyStepper)};
 
 // // Scenario probabilities (must total to 100)
 // const uint8_t scenarioProbabilities[NUM_SCENARIOS][NUM_CYCLISTS] = {
@@ -89,7 +90,7 @@ void setup()
 	updateDisplay("CALIBRATING", "....");
 	calibrateSteppers();
 
-	updateDisplay("Horse Race", "Press A to Start");
+	updateDisplay("Bike Race", "Press A to Start");
 	currentScenario = -1; // Selectable between 0–5
 }
 

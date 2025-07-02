@@ -163,7 +163,7 @@ void checkWinner() {
     for (int i = 0; i < NUM_CYCLISTS; i++) {
         if (steppers[i].currentPosition() >= RACE_DISTANCE) {
             raceFinished = true;
-            updateDisplay("Race Finished", "Winner: Horse " + std::to_string(i + 1));
+            updateDisplay("Race Finished", "Winner: Rider " + std::to_string(i + 1));
             return;
         }
     }

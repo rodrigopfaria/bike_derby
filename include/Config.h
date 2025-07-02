@@ -38,7 +38,7 @@ extern int limitSwitchPinsEnd[NUM_CYCLISTS];
 //------------------------------------
 // Constants
 extern const int NUM_SCENARIOS;
-extern const int RACE_DISTANCE;           // todo: calibrate total steps to finish line
+extern const long RACE_DISTANCE;           // todo: calibrate total steps to finish line
 extern const int BOOST_CHANCE;              // % Chance of speed boost (double step)
 extern const int STEP_DELAY;               // Base delay between steps (ms)
 extern const unsigned long debounceDelay;  // milliseconds
