@@ -36,3 +36,18 @@ Pins:
 +------+---------+
 | D7   | Pin 43  |
 +------+---------+
+
+
+
+---------------------
+BRANCH ORGANIZATION
+---------------------
+
+MAIN
+full featured code adapted to our hardware.
+
+JUETA-DEV (sepa mudar de nome)
+working code with some features commented out.
+
+DEVELOP
+first chatgpt full feature code.
